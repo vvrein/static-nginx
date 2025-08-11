@@ -6,13 +6,13 @@ RUN apk --update add autoconf libtool automake python3 pkgconf python3-dev # for
 WORKDIR /tmp/src
 
 
-ENV NGINX_VER="1.27.3"
+ENV NGINX_VER="1.28.0"
 ENV NGINX_SRC="http://nginx.org/download/nginx-${NGINX_VER}.tar.gz"
 
-ENV PCRE_VER="10.44"
+ENV PCRE_VER="10.45"
 ENV PCRE_SRC="https://github.com/PCRE2Project/pcre2/releases/download/pcre2-${PCRE_VER}/pcre2-${PCRE_VER}.tar.gz"
 
-ENV OPENSSL_VER="3.4.0"
+ENV OPENSSL_VER="3.5.2"
 ENV OPENSSL_SRC="https://github.com/openssl/openssl/releases/download/openssl-${OPENSSL_VER}/openssl-${OPENSSL_VER}.tar.gz"
 
 ENV ZLIB_VER="1.3.1"
@@ -21,10 +21,10 @@ ENV ZLIB_SRC="https://github.com/madler/zlib/releases/download/v${ZLIB_VER}/zlib
 ENV LIBXSLT_VER="1.1.42"
 ENV LIBXSLT_SRC="https://gitlab.gnome.org/GNOME/libxslt/-/archive/v${LIBXSLT_VER}/libxslt-v${LIBXSLT_VER}.tar.gz"
 
-ENV LIBXML_VER="2.13.5"
+ENV LIBXML_VER="2.14.5"
 ENV LIBXML_SRC="https://gitlab.gnome.org/GNOME/libxml2/-/archive/v${LIBXML_VER}/libxml2-v${LIBXML_VER}.tar.gz"
 
-ENV NGX_VTSMOD_SRC="https://github.com/vozlt/nginx-module-vts/archive/refs/tags/v0.2.3.tar.gz"
+ENV NGX_VTSMOD_SRC="https://github.com/vozlt/nginx-module-vts/archive/refs/tags/v0.2.4.tar.gz"
 ENV NGX_MRHDRS_SRC="https://github.com/openresty/headers-more-nginx-module/archive/refs/tags/v0.38.tar.gz"
 
 RUN I=nginx \
