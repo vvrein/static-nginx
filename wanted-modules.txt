@@ -1,0 +1,5 @@
+https://github.com/61131/nginx-http-auth-totp
+https://github.com/yaoweibin/nginx_upstream_check_module
+https://github.com/aperezdc/ngx-fancyindex
+https://github.com/wandenberg/nginx-selective-cache-purge-module
+https://github.com/openresty/set-misc-nginx-module

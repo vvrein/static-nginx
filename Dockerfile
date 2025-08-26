@@ -1,8 +1,8 @@
-FROM alpine:latest as builder
+FROM alpine:latest AS builder
 
 RUN mkdir -p /tmp/src
-RUN apk --update add openssl-dev pcre-dev zlib-dev wget build-base perl linux-headers
-RUN apk --update add autoconf libtool automake python3 pkgconf python3-dev # for libxml/libxslt
+RUN apk --update add wget build-base perl linux-headers autoconf libtool automake python3 pkgconf python3-dev # for builind
+RUN apk --update add perl-test-harness-utils perl-test-nginx perl-io-socket-ssl perl-cgi-fast perl-cryptx uwsgi-python3 sudo prometheus # for testing
 WORKDIR /tmp/src
 
 
@@ -25,7 +25,7 @@ ENV LIBXML_VER="2.14.5"
 ENV LIBXML_SRC="https://gitlab.gnome.org/GNOME/libxml2/-/archive/v${LIBXML_VER}/libxml2-v${LIBXML_VER}.tar.gz"
 
 ENV NGX_VTSMOD_SRC="https://github.com/vozlt/nginx-module-vts/archive/refs/tags/v0.2.4.tar.gz"
-ENV NGX_MRHDRS_SRC="https://github.com/openresty/headers-more-nginx-module/archive/refs/tags/v0.38.tar.gz"
+
 
 RUN I=nginx \
     && mkdir ${I} \
@@ -62,11 +62,49 @@ RUN I=nginx-vts \
     && wget -O ${I}.tar.gz ${NGX_VTSMOD_SRC} \
     && tar --extract --file ${I}.tar.gz --strip-components=1 --directory=${I}
 
+ENV NGX_MRHDRS_SRC="https://github.com/openresty/headers-more-nginx-module/archive/refs/tags/v0.38.tar.gz"
 RUN I=nginx-more-headers \
     && mkdir ${I} \
     && wget -O ${I}.tar.gz ${NGX_MRHDRS_SRC} \
     && tar --extract --file ${I}.tar.gz --strip-components=1 --directory=${I}
 
+ENV NGX_ECHO_SRC="https://github.com/openresty/echo-nginx-module/archive/refs/tags/v0.63.tar.gz"
+RUN I=nginx-echo \
+    && mkdir ${I} \
+    && wget -O ${I}.tar.gz ${NGX_ECHO_SRC} \
+    && tar --extract --file ${I}.tar.gz --strip-components=1 --directory=${I}
+
+ENV NGX_TESTS_SRC="https://github.com/openresty/lua-nginx-module/archive/refs/tags/v0.10.28.tar.gz"
+RUN I=nginx-tests \
+    && mkdir ${I} \
+    && wget -O ${I}.tar.gz ${NGX_TESTS_SRC} \
+    && tar --extract --file ${I}.tar.gz --strip-components=1 --directory=${I}
+
+#ENV NGX_DVLKIT_SRC="https://github.com/vision5/ngx_devel_kit/archive/refs/tags/v0.3.4.tar.gz"
+#RUN I=nginx-devel-kit \
+#    && mkdir ${I} \
+#    && wget -O ${I}.tar.gz ${NGX_DVLKIT_SRC} \
+#    && tar --extract --file ${I}.tar.gz --strip-components=1 --directory=${I}
+#
+#ENV NGX_LUA_SRC="https://github.com/openresty/lua-nginx-module/archive/refs/tags/v0.10.28.tar.gz"
+#RUN I=nginx-lua \
+#    && mkdir ${I} \
+#    && wget -O ${I}.tar.gz ${NGX_LUA_SRC} \
+#    && tar --extract --file ${I}.tar.gz --strip-components=1 --directory=${I}
+#
+#ENV LUAJIT_SRC="https://github.com/openresty/luajit2/archive/refs/tags/v2.1-20250529.tar.gz"
+#RUN I=luajit2 \
+#    && mkdir ${I} \
+#    && wget -O ${I}.tar.gz ${LUAJIT_SRC} \
+#    && tar --extract --file ${I}.tar.gz --strip-components=1 --directory=${I} \
+#    && cd ${I} \
+#    && make -j $(nproc) \
+#    && make install
+#
+#ENV LUAJIT_LIB=/usr/local/lib
+#ENV LUAJIT_INC=/usr/local/include/luajit-2.1
+#    --add-module=../nginx-devel-kit \
+#    --add-module=../nginx-lua \
 
 ENV CFLAGS="-O2 -static -static-libgcc -fPIC"
 ENV LDFLAGS="-static"
@@ -80,19 +118,11 @@ RUN cd libxslt \
     && make -j $(nproc) \
     && make install
 
-#RUN <<EOF
-#   cd /usr/x86_64-alpine-linux-musl/bin
-#   mv ld ld-o
-#   echo -e '#!/bin/sh\n/usr/x86_64-alpine-linux-musl/bin/ld-o --verbose $@ | tee -a /tmp/ldlog' > ld
-#   chmod +x ld
-#   mkdir -p /tmp/src/nginx/objs/
-#   echo -e "#include <sys/types.h>\nint main(void) {\n;\n\nreturn 0;\n}\n" > /tmp/src/nginx/objs/autotest.c
-#EOF
-
 RUN cd nginx && ./configure \
     --with-cc-opt='-g -fstack-protector-strong -Wformat -Werror=format-security -Wdate-time -D_FORTIFY_SOURCE=2 -O2 -static -static-libgcc -fPIC -I/usr/local/include/libxml2 -I/usr/local/include/libxslt' \
     --with-ld-opt='-Wl,-z,relro -Wl,-z,now -fPIC -static -lxml2 -lxslt' \
     --add-module=../nginx-vts \
+    --add-module=../nginx-echo \
     --add-module=../nginx-more-headers \
     --with-openssl=../openssl \
     --with-pcre=../pcre \
@@ -140,6 +170,11 @@ RUN cd nginx && ./configure \
     --with-file-aio
 
 RUN cd nginx && make -j $(nproc)
+# to run nginx-tests tests
+# sudo -u nobody env PATH=/tmp/src/openssl/apps/:$PATH TEST_NGINX_BINARY=/tmp/src/nginx/objs/nginx prove -v .
+
+# to run nginx-module-vts tests
+# PATH=/tmp/src/nginx/objs/:$PATH prove  -r $(ls -1 t/ | grep '[[:digit:]]' | grep -v lua | sed 's/^/t\//')
 
 #  --with-http_degradation_module     enable ngx_http_degradation_module
 #  --with-select_module               enable select module
@@ -157,3 +192,14 @@ RUN cd nginx && make -j $(nproc)
 #  --with-cpp_test_module             enable ngx_cpp_test_module
 #  --with-libatomic                   force libatomic_ops library usage
 #  --with-libatomic=DIR               set path to libatomic_ops library sources
+
+
+
+#RUN <<EOF
+#   cd /usr/x86_64-alpine-linux-musl/bin
+#   mv ld ld-o
+#   echo -e '#!/bin/sh\n/usr/x86_64-alpine-linux-musl/bin/ld-o --verbose $@ | tee -a /tmp/ldlog' > ld
+#   chmod +x ld
+#   mkdir -p /tmp/src/nginx/objs/
+#   echo -e "#include <sys/types.h>\nint main(void) {\n;\n\nreturn 0;\n}\n" > /tmp/src/nginx/objs/autotest.c
+#EOF

@@ -1,0 +1,33 @@
+
+
+
+https://github.com/openresty/lua-nginx-module#statically-linking-pure-lua-modules
+https://groups.google.com/g/openresty-en/c/Sx42rJeuixU?pli=1
+http://lua-users.org/lists/lua-l/2010-07/msg00829.html
+
+
+ENV NGX_DVLKIT_SRC="https://github.com/vision5/ngx_devel_kit/archive/refs/tags/v0.3.4.tar.gz"
+RUN I=nginx-devel-kit \
+    && mkdir ${I} \
+    && wget -O ${I}.tar.gz ${NGX_DVLKIT_SRC} \
+    && tar --extract --file ${I}.tar.gz --strip-components=1 --directory=${I}
+
+ENV NGX_LUA_SRC="https://github.com/openresty/lua-nginx-module/archive/refs/tags/v0.10.28.tar.gz"
+RUN I=nginx-lua \
+    && mkdir ${I} \
+    && wget -O ${I}.tar.gz ${NGX_LUA_SRC} \
+    && tar --extract --file ${I}.tar.gz --strip-components=1 --directory=${I}
+
+ENV LUAJIT_SRC="https://github.com/openresty/luajit2/archive/refs/tags/v2.1-20250529.tar.gz"
+RUN I=luajit2 \
+    && mkdir ${I} \
+    && wget -O ${I}.tar.gz ${LUAJIT_SRC} \
+    && tar --extract --file ${I}.tar.gz --strip-components=1 --directory=${I} \
+    && cd ${I} \
+    && make -j $(nproc) \
+    && make install
+
+ENV LUAJIT_LIB=/usr/local/lib
+ENV LUAJIT_INC=/usr/local/include/luajit-2.1
+    --add-module=../nginx-devel-kit \
+    --add-module=../nginx-lua \
