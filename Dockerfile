@@ -1,5 +1,6 @@
 FROM alpine:latest AS builder
 
+# apt update && apt install wget build-essential perl linux-headers-amd64 autoconf libtool automake python3 pkgconf python3-dev
 RUN mkdir -p /tmp/src
 RUN apk --update add wget build-base perl linux-headers autoconf libtool automake python3 pkgconf python3-dev # for builind
 RUN apk --update add perl-test-harness-utils perl-test-nginx perl-io-socket-ssl perl-cgi-fast perl-cryptx uwsgi-python3 sudo prometheus # for testing
@@ -38,20 +39,6 @@ RUN I=zlib \
     && tar --extract --file ${I}.tar.gz --strip-components=1 --directory=${I}
 
 
-ENV LIBXSLT_VER="1.1.42"
-ENV LIBXSLT_SRC="https://gitlab.gnome.org/GNOME/libxslt/-/archive/v${LIBXSLT_VER}/libxslt-v${LIBXSLT_VER}.tar.gz"
-RUN I=libxslt \
-    && mkdir ${I} \
-    && wget -O ${I}.tar.gz ${LIBXSLT_SRC} \
-    && tar --extract --file ${I}.tar.gz --strip-components=1 --directory=${I}
-
-
-ENV LIBXML_VER="2.14.5"
-ENV LIBXML_SRC="https://gitlab.gnome.org/GNOME/libxml2/-/archive/v${LIBXML_VER}/libxml2-v${LIBXML_VER}.tar.gz"
-RUN I=libxml \
-    && mkdir ${I} \
-    && wget -O ${I}.tar.gz ${LIBXML_SRC} \
-    && tar --extract --file ${I}.tar.gz --strip-components=1 --directory=${I}
 
 ENV NGX_VTSMOD_VER="0.2.4"
 ENV NGX_VTSMOD_SRC="https://github.com/vozlt/nginx-module-vts/archive/refs/tags/v${NGX_VTSMOD_VER}.tar.gz"
@@ -59,6 +46,7 @@ RUN I=nginx-vts \
     && mkdir ${I} \
     && wget -O ${I}.tar.gz ${NGX_VTSMOD_SRC} \
     && tar --extract --file ${I}.tar.gz --strip-components=1 --directory=${I}
+
 
 ENV NGX_MORHDRS_VER="0.38"
 ENV NGX_MORHDRS_SRC="https://github.com/openresty/headers-more-nginx-module/archive/refs/tags/v${NGX_MORHDRS_VER}.tar.gz"
@@ -83,21 +71,73 @@ RUN I=nginx-tests \
     && tar --extract --file ${I}.tar.gz --strip-components=1 --directory=${I}
 
 
+ENV NGX_NJS_VER="0.9.1"
+ENV NGX_NJS_SRC="https://github.com/nginx/njs/archive/refs/tags/${NGX_NJS_VER}.tar.gz"
+RUN I=nginx-njs \
+    && mkdir ${I} \
+    && wget -O ${I}.tar.gz ${NGX_NJS_SRC} \
+    && tar --extract --file ${I}.tar.gz --strip-components=1 --directory=${I}
+
+
+ENV QJS_VER="2025-04-26"
+ENV QJS_SRC="https://bellard.org/quickjs/quickjs-${QJS_VER}.tar.xz"
+RUN I=quickjs \
+    && mkdir ${I} \
+    && wget -O ${I}.tar.gz ${QJS_SRC} \
+    && tar --extract --file ${I}.tar.gz --strip-components=1 --directory=${I}
+
+
 ENV CFLAGS="-O2 -static -static-libgcc -fPIC"
 ENV LDFLAGS="-static"
-RUN cd libxml \
+
+
+ENV LIBXML_VER="2.14.5"
+ENV LIBXML_SRC="https://gitlab.gnome.org/GNOME/libxml2/-/archive/v${LIBXML_VER}/libxml2-v${LIBXML_VER}.tar.gz"
+RUN I=libxml \
+    && mkdir ${I} \
+    && wget -O ${I}.tar.gz ${LIBXML_SRC} \
+    && tar --extract --file ${I}.tar.gz --strip-components=1 --directory=${I} \
+    && cd ${I} \
     && ./autogen.sh \
     && make -j $(nproc) \
     && make install
 
-RUN cd libxslt \
+
+ENV LIBXSLT_VER="1.1.42"
+ENV LIBXSLT_SRC="https://gitlab.gnome.org/GNOME/libxslt/-/archive/v${LIBXSLT_VER}/libxslt-v${LIBXSLT_VER}.tar.gz"
+RUN I=libxslt \
+    && mkdir ${I} \
+    && wget -O ${I}.tar.gz ${LIBXSLT_SRC} \
+    && tar --extract --file ${I}.tar.gz --strip-components=1 --directory=${I} \
+    && cd ${I}  \
     && ./autogen.sh --with-libxml-src=../libxml \
     && make -j $(nproc) \
     && make install
 
+RUN apk add cargo rust rustfmt clang20-libclang
+
+ENV NGX_ACM_VER="0.1.1"
+ENV NGX_ACM_SRC="https://github.com/nginx/nginx-acme/releases/download/v${NGX_ACM_VER}/nginx-acme-${NGX_ACM_VER}.tar.gz"
+RUN I=nginx-acme \
+    && mkdir ${I} \
+    && wget -O ${I}.tar.gz ${NGX_ACM_SRC} \
+    && tar --extract --file ${I}.tar.gz --strip-components=1 --directory=${I}
+
+ENV PKG_CONFIG_PATH=/tmp/src/openssl/.openssl/lib/pkgconfig
+# Build OpenSSL into .openssl/ prefix so nginx-sys (nginx-acme's Rust build script)
+# can find openssl/ssl.h at ../openssl/.openssl/include before nginx's own make runs.
+RUN cd openssl && ./config --prefix=$(pwd)/.openssl no-shared && make -j $(nproc) && make install_sw
+# Tell openssl-sys (nginx-acme's Rust dep) where OpenSSL lives, bypassing pkg-config.
+ENV OPENSSL_DIR=/tmp/src/openssl/.openssl
+ENV OPENSSL_STATIC=1
+ENV RUST_BACKTRACE=1
+
+
 RUN cd nginx && ./configure \
-    --with-cc-opt='-g -fstack-protector-strong -Wformat -Werror=format-security -Wdate-time -D_FORTIFY_SOURCE=2 -O2 -static -static-libgcc -fPIC -I/usr/local/include/libxml2 -I/usr/local/include/libxslt' \
-    --with-ld-opt='-Wl,-z,relro -Wl,-z,now -fPIC -static -lxml2 -lxslt' \
+    --with-cc-opt='-g -fstack-protector-strong -Wformat -Werror=format-security -Wdate-time -D_FORTIFY_SOURCE=2 -O2 -static -static-libgcc -fPIC -I/usr/local/include/libxml2 -I/usr/local/include/libxslt -I../quickjs' \
+    --with-ld-opt='-Wl,-z,relro -Wl,-z,now -fPIC -static -lxml2 -lxslt -L../quickjs' \
+    --add-module=../nginx-acme \
+    --add-module=../nginx-njs/nginx \
     --add-module=../nginx-vts \
     --add-module=../nginx-echo \
     --add-module=../nginx-more-headers \
@@ -151,5 +191,11 @@ RUN cd nginx && make -j $(nproc)
 # to run nginx-tests tests
 # sudo -u nobody env PATH=/tmp/src/openssl/apps/:$PATH TEST_NGINX_BINARY=/tmp/src/nginx/objs/nginx prove .
 
+# to run nginx-njs tests
+# sudo -u nobody env PATH=/tmp/src/openssl/apps/:$PATH  TEST_NGINX_BINARY=/tmp/src/nginx/objs/nginx prove -r -I /tmp/src/nginx-tests/lib/ nginx/t
+
 # to run nginx-module-vts tests
 # PATH=/tmp/src/nginx/objs/:$PATH prove -r $(ls -1 t/ | grep '[[:digit:]]' | grep -v lua | sed 's/^/t\//')
+
+# to run nginx-acme tests
+# /tmp/src/nginx-acme # sudo -u nobody env TEST_NGINX_LEAVE=1 RUST_BACKTRACE=1 TEST_NGINX_BINARY="/tmp/src/nginx/objs/nginx" TEST_NGINX_GLOBALS="" prove -I /tmp/src/nginx-tests/lib --state=save t/
