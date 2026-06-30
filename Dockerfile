@@ -7,7 +7,7 @@ RUN apk --update add perl-test-harness-utils perl-test-nginx perl-io-socket-ssl 
 WORKDIR /tmp/src
 
 
-ENV NGINX_VER="1.28.0"
+ENV NGINX_VER="1.30.3"
 ENV NGINX_SRC="http://nginx.org/download/nginx-${NGINX_VER}.tar.gz"
 RUN I=nginx \
     && mkdir ${I} \
@@ -15,7 +15,7 @@ RUN I=nginx \
     && tar --extract --file ${I}.tar.gz --strip-components=1 --directory=${I}
 
 
-ENV PCRE_VER="10.45"
+ENV PCRE_VER="10.47"
 ENV PCRE_SRC="https://github.com/PCRE2Project/pcre2/releases/download/pcre2-${PCRE_VER}/pcre2-${PCRE_VER}.tar.gz"
 RUN I=pcre \
     && mkdir ${I} \
@@ -23,7 +23,7 @@ RUN I=pcre \
     && tar --extract --file ${I}.tar.gz --strip-components=1 --directory=${I}
 
 
-ENV OPENSSL_VER="3.5.2"
+ENV OPENSSL_VER="4.0.1"
 ENV OPENSSL_SRC="https://github.com/openssl/openssl/releases/download/openssl-${OPENSSL_VER}/openssl-${OPENSSL_VER}.tar.gz"
 RUN I=openssl \
     && mkdir ${I} \
@@ -31,7 +31,7 @@ RUN I=openssl \
     && tar --extract --file ${I}.tar.gz --strip-components=1 --directory=${I}
 
 
-ENV ZLIB_VER="1.3.1"
+ENV ZLIB_VER="1.3.2"
 ENV ZLIB_SRC="https://github.com/madler/zlib/releases/download/v${ZLIB_VER}/zlib-${ZLIB_VER}.tar.xz"
 RUN I=zlib \
     && mkdir ${I} \
@@ -40,7 +40,7 @@ RUN I=zlib \
 
 
 
-ENV NGX_VTSMOD_VER="0.2.4"
+ENV NGX_VTSMOD_VER="0.2.5"
 ENV NGX_VTSMOD_SRC="https://github.com/vozlt/nginx-module-vts/archive/refs/tags/v${NGX_VTSMOD_VER}.tar.gz"
 RUN I=nginx-vts \
     && mkdir ${I} \
@@ -48,7 +48,7 @@ RUN I=nginx-vts \
     && tar --extract --file ${I}.tar.gz --strip-components=1 --directory=${I}
 
 
-ENV NGX_MORHDRS_VER="0.38"
+ENV NGX_MORHDRS_VER="0.40"
 ENV NGX_MORHDRS_SRC="https://github.com/openresty/headers-more-nginx-module/archive/refs/tags/v${NGX_MORHDRS_VER}.tar.gz"
 RUN I=nginx-more-headers \
     && mkdir ${I} \
@@ -56,7 +56,7 @@ RUN I=nginx-more-headers \
     && tar --extract --file ${I}.tar.gz --strip-components=1 --directory=${I}
 
 
-ENV NGX_ECHO_VER="0.63"
+ENV NGX_ECHO_VER="0.65"
 ENV NGX_ECHO_SRC="https://github.com/openresty/echo-nginx-module/archive/refs/tags/v${NGX_ECHO_VER}.tar.gz"
 RUN I=nginx-echo \
     && mkdir ${I} \
@@ -71,7 +71,7 @@ RUN I=nginx-tests \
     && tar --extract --file ${I}.tar.gz --strip-components=1 --directory=${I}
 
 
-ENV NGX_NJS_VER="0.9.1"
+ENV NGX_NJS_VER="1.0.0"
 ENV NGX_NJS_SRC="https://github.com/nginx/njs/archive/refs/tags/${NGX_NJS_VER}.tar.gz"
 RUN I=nginx-njs \
     && mkdir ${I} \
@@ -79,7 +79,7 @@ RUN I=nginx-njs \
     && tar --extract --file ${I}.tar.gz --strip-components=1 --directory=${I}
 
 
-ENV QJS_VER="2025-04-26"
+ENV QJS_VER="2026-06-04"
 ENV QJS_SRC="https://bellard.org/quickjs/quickjs-${QJS_VER}.tar.xz"
 RUN I=quickjs \
     && mkdir ${I} \
@@ -91,7 +91,7 @@ ENV CFLAGS="-O2 -static -static-libgcc -fPIC"
 ENV LDFLAGS="-static"
 
 
-ENV LIBXML_VER="2.14.5"
+ENV LIBXML_VER="2.15.3"
 ENV LIBXML_SRC="https://gitlab.gnome.org/GNOME/libxml2/-/archive/v${LIBXML_VER}/libxml2-v${LIBXML_VER}.tar.gz"
 RUN I=libxml \
     && mkdir ${I} \
@@ -103,7 +103,7 @@ RUN I=libxml \
     && make install
 
 
-ENV LIBXSLT_VER="1.1.42"
+ENV LIBXSLT_VER="1.1.45"
 ENV LIBXSLT_SRC="https://gitlab.gnome.org/GNOME/libxslt/-/archive/v${LIBXSLT_VER}/libxslt-v${LIBXSLT_VER}.tar.gz"
 RUN I=libxslt \
     && mkdir ${I} \
@@ -116,7 +116,7 @@ RUN I=libxslt \
 
 RUN apk add cargo rust rustfmt clang20-libclang
 
-ENV NGX_ACM_VER="0.1.1"
+ENV NGX_ACM_VER="0.4.1"
 ENV NGX_ACM_SRC="https://github.com/nginx/nginx-acme/releases/download/v${NGX_ACM_VER}/nginx-acme-${NGX_ACM_VER}.tar.gz"
 RUN I=nginx-acme \
     && mkdir ${I} \
@@ -134,8 +134,8 @@ ENV RUST_BACKTRACE=1
 
 
 RUN cd nginx && ./configure \
-    --with-cc-opt='-g -fstack-protector-strong -Wformat -Werror=format-security -Wdate-time -D_FORTIFY_SOURCE=2 -O2 -static -static-libgcc -fPIC -I/usr/local/include/libxml2 -I/usr/local/include/libxslt -I../quickjs' \
-    --with-ld-opt='-Wl,-z,relro -Wl,-z,now -fPIC -static -lxml2 -lxslt -L../quickjs' \
+    --with-cc-opt='-g -fstack-protector-strong -Wformat -Werror=format-security -Wdate-time -D_FORTIFY_SOURCE=2 -I/usr/local/include/libxml2 -I/usr/local/include/libxslt -I../quickjs' \
+    --with-ld-opt='-static -lxml2 -lxslt -L../quickjs' \
     --add-module=../nginx-acme \
     --add-module=../nginx-njs/nginx \
     --add-module=../nginx-vts \
