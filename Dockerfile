@@ -3,11 +3,11 @@ FROM alpine:latest AS builder
 # apt update && apt install wget build-essential perl linux-headers-amd64 autoconf libtool automake python3 pkgconf python3-dev
 RUN mkdir -p /tmp/src
 RUN apk --update add wget build-base perl linux-headers autoconf libtool automake python3 pkgconf python3-dev # for builind
-RUN apk --update add perl-test-harness-utils perl-test-nginx perl-io-socket-ssl perl-cgi-fast perl-cryptx uwsgi-python3 sudo prometheus # for testing
+RUN apk --update add perl-test-harness-utils perl-test-nginx perl-io-socket-ssl perl-cgi-fast perl-cryptx uwsgi-python3 sudo prometheus pebble perl-io-socket-inet6 # for testing
 WORKDIR /tmp/src
 
 
-ENV NGINX_VER="1.30.3"
+ENV NGINX_VER="1.31.9"
 ENV NGINX_SRC="http://nginx.org/download/nginx-${NGINX_VER}.tar.gz"
 RUN I=nginx \
     && mkdir ${I} \
@@ -15,7 +15,7 @@ RUN I=nginx \
     && tar --extract --file ${I}.tar.gz --strip-components=1 --directory=${I}
 
 
-ENV PCRE_VER="10.47"
+ENV PCRE_VER="10.49"
 ENV PCRE_SRC="https://github.com/PCRE2Project/pcre2/releases/download/pcre2-${PCRE_VER}/pcre2-${PCRE_VER}.tar.gz"
 RUN I=pcre \
     && mkdir ${I} \
@@ -23,7 +23,8 @@ RUN I=pcre \
     && tar --extract --file ${I}.tar.gz --strip-components=1 --directory=${I}
 
 
-ENV OPENSSL_VER="4.0.1"
+# 4.1.0+ dropped CN fallback in hostname checks, some nginx-tests fail, see "Known test failures" in readme.md
+ENV OPENSSL_VER="4.1.0"
 ENV OPENSSL_SRC="https://github.com/openssl/openssl/releases/download/openssl-${OPENSSL_VER}/openssl-${OPENSSL_VER}.tar.gz"
 RUN I=openssl \
     && mkdir ${I} \
@@ -31,7 +32,7 @@ RUN I=openssl \
     && tar --extract --file ${I}.tar.gz --strip-components=1 --directory=${I}
 
 
-ENV ZLIB_VER="1.3.2"
+ENV ZLIB_VER="1.4"
 ENV ZLIB_SRC="https://github.com/madler/zlib/releases/download/v${ZLIB_VER}/zlib-${ZLIB_VER}.tar.xz"
 RUN I=zlib \
     && mkdir ${I} \
@@ -40,7 +41,7 @@ RUN I=zlib \
 
 
 
-ENV NGX_VTSMOD_VER="0.2.5"
+ENV NGX_VTSMOD_VER="0.2.7"
 ENV NGX_VTSMOD_SRC="https://github.com/vozlt/nginx-module-vts/archive/refs/tags/v${NGX_VTSMOD_VER}.tar.gz"
 RUN I=nginx-vts \
     && mkdir ${I} \
@@ -48,7 +49,7 @@ RUN I=nginx-vts \
     && tar --extract --file ${I}.tar.gz --strip-components=1 --directory=${I}
 
 
-ENV NGX_MORHDRS_VER="0.40"
+ENV NGX_MORHDRS_VER="0.42"
 ENV NGX_MORHDRS_SRC="https://github.com/openresty/headers-more-nginx-module/archive/refs/tags/v${NGX_MORHDRS_VER}.tar.gz"
 RUN I=nginx-more-headers \
     && mkdir ${I} \
@@ -56,7 +57,7 @@ RUN I=nginx-more-headers \
     && tar --extract --file ${I}.tar.gz --strip-components=1 --directory=${I}
 
 
-ENV NGX_ECHO_VER="0.65"
+ENV NGX_ECHO_VER="0.66"
 ENV NGX_ECHO_SRC="https://github.com/openresty/echo-nginx-module/archive/refs/tags/v${NGX_ECHO_VER}.tar.gz"
 RUN I=nginx-echo \
     && mkdir ${I} \
@@ -71,7 +72,7 @@ RUN I=nginx-tests \
     && tar --extract --file ${I}.tar.gz --strip-components=1 --directory=${I}
 
 
-ENV NGX_NJS_VER="1.0.0"
+ENV NGX_NJS_VER="1.0.2"
 ENV NGX_NJS_SRC="https://github.com/nginx/njs/archive/refs/tags/${NGX_NJS_VER}.tar.gz"
 RUN I=nginx-njs \
     && mkdir ${I} \
@@ -91,7 +92,7 @@ ENV CFLAGS="-O2 -static -static-libgcc -fPIC"
 ENV LDFLAGS="-static"
 
 
-ENV LIBXML_VER="2.15.3"
+ENV LIBXML_VER="2.15.4"
 ENV LIBXML_SRC="https://gitlab.gnome.org/GNOME/libxml2/-/archive/v${LIBXML_VER}/libxml2-v${LIBXML_VER}.tar.gz"
 RUN I=libxml \
     && mkdir ${I} \
@@ -116,7 +117,7 @@ RUN I=libxslt \
 
 RUN apk add cargo rust rustfmt clang20-libclang
 
-ENV NGX_ACM_VER="0.4.1"
+ENV NGX_ACM_VER="0.4.2"
 ENV NGX_ACM_SRC="https://github.com/nginx/nginx-acme/releases/download/v${NGX_ACM_VER}/nginx-acme-${NGX_ACM_VER}.tar.gz"
 RUN I=nginx-acme \
     && mkdir ${I} \
@@ -133,9 +134,12 @@ ENV OPENSSL_STATIC=1
 ENV RUST_BACKTRACE=1
 
 
+# -no-pie: Alpine gcc defaults to PIE, so "-static" alone gives a static-PIE. nginx links with -Wl,-E,
+# which leaves R_X86_64_TPOFF64 relocations for Rust thread-locals; musl's static-PIE startup (rcrt1)
+# doesn't apply them, so e.g. tokio's coop budget reads garbage and nginx-acme busy-loops forever.
 RUN cd nginx && ./configure \
-    --with-cc-opt='-g -fstack-protector-strong -Wformat -Werror=format-security -Wdate-time -D_FORTIFY_SOURCE=2 -I/usr/local/include/libxml2 -I/usr/local/include/libxslt -I../quickjs' \
-    --with-ld-opt='-static -lxml2 -lxslt -L../quickjs' \
+    --with-cc-opt='-g -fstack-protector-strong -Wformat -Werror=format-security -Wdate-time -D_FORTIFY_SOURCE=2 -I/usr/local/include/libxml2 -I/usr/local/include/libxslt -I/tmp/src/quickjs' \
+    --with-ld-opt='-static -no-pie -lxml2 -lxslt -L/tmp/src/quickjs' \
     --add-module=../nginx-acme \
     --add-module=../nginx-njs/nginx \
     --add-module=../nginx-vts \
