@@ -20,6 +20,27 @@ docker rm nginx
 ```
 
 
+Before replacing a host's nginx with this binary, run the preflight check on that host as root:
+```
+sudo ./preflight.sh                       # downloads the published tarball to /tmp/static-nginx, verifies its pinned sha256
+sudo ./preflight.sh --binary ./nginx      # or check a local binary
+sudo ./preflight.sh --upgrade             # check, then install and switch the systemd unit to the new binary
+sudo ./preflight.sh --rollback            # switch the unit back to the distro binary
+```
+It tests the host's config with the new binary and compares compiled-in defaults (prefix, pid, user, temp paths) with
+the current build. It also checks dynamic modules, OpenSSL 4.1 TLS changes, SELinux, the systemd PIDFile and logrotate,
+and the kernel SCTP module. Exit code: 0 GO, 1 GO with warnings, 2 NO-GO, 3 script error, 4 upgrade failed and was rolled back.
+
+`--upgrade` runs only when there are no blockers (warnings don't stop it). It installs `/usr/local/sbin/nginx` and
+writes `/etc/systemd/system/<unit>.d/static-nginx.conf`, which copies the unit's `Exec*` lines with only the binary
+path replaced (plus `-p`/`-c` when the old build's prefix or config path differ). Then it restarts the unit and checks
+that the master process runs the new binary. If that fails, the previous state is restored. The distro binary and
+package stay untouched, so package updates don't undo the switch. Running it again with the same build changes nothing.
+The tarball and extracted binary are kept in `--dir` (default `/tmp/static-nginx`, which must be root-owned and not
+writable by others).
+Bump the pinned hashes at the top of the script whenever a new tarball is published.
+
+
 To run tests:  
 ```
 docker run --rm -it nginx:nginx sh
